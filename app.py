@@ -4,14 +4,13 @@ load_dotenv()
 
 import streamlit as st
 
-from core.groq_client import regenerate_slide
+from core.api_client import call_content_api, call_outline_api, call_regenerate_slide_api
 from core.pdf_utils import extract_text_from_pdfs
 from core.ppt_builder import build_pptx
-from core.workflow import run_content_step, run_outline_step
 
 st.set_page_config(page_title="AI PPT Generator", page_icon="📊")
-st.title("AI PPT Generator — Phase 4")
-st.caption("Text/PDFs → Outline (your review) → Slide Content → python-pptx → Download")
+st.title("AI PPT Generator — Phase 7")
+st.caption("Streamlit → FastAPI → LangGraph → Groq → python-pptx → Download")
 
 for key, default in [
     ("outline", None),
@@ -60,9 +59,7 @@ if st.session_state.outline is None and st.session_state.plan is None:
             with st.spinner("Planning outline..."):
                 try:
                     st.session_state.input_text = combined_text
-                    st.session_state.outline = run_outline_step(
-                        combined_text, slide_count=slide_count
-                    )
+                    st.session_state.outline = call_outline_api(combined_text, slide_count)
                     st.rerun()
                 except Exception as e:
                     st.error(f"Failed to plan outline: {e}")
@@ -117,8 +114,8 @@ elif st.session_state.outline is not None and st.session_state.plan is None:
             else:
                 with st.spinner("Writing slide content and running a quality check..."):
                     try:
-                        st.session_state.plan = run_content_step(
-                            outline, original_text=st.session_state.input_text
+                        st.session_state.plan = call_content_api(
+                            outline, st.session_state.input_text
                         )
                         st.rerun()
                     except Exception as e:
@@ -159,8 +156,8 @@ else:
                 if st.button("Regenerate", key=f"regen_{i}"):
                     with st.spinner("Regenerating slide..."):
                         try:
-                            plan.slides[i] = regenerate_slide(
-                                plan.presentation_title, slide, instructions=regen_instructions
+                            plan.slides[i] = call_regenerate_slide_api(
+                                plan.presentation_title, slide, regen_instructions
                             )
                             st.rerun()
                         except Exception as e:
