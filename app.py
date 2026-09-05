@@ -105,6 +105,19 @@ elif st.session_state.outline is not None and st.session_state.plan is None:
         outline.items.append(OutlineItem(title="New slide", focus="Describe what this covers"))
         st.rerun()
 
+    chart_choice = st.selectbox(
+        "Charts",
+        options=["Auto (AI decides)", "Bar", "Line", "Pie", "No charts"],
+        help="Controls whether/which chart type is used for slides with numeric data.",
+    )
+    chart_preference = {
+        "Auto (AI decides)": "auto",
+        "Bar": "bar",
+        "Line": "line",
+        "Pie": "pie",
+        "No charts": "none",
+    }[chart_choice]
+
     col_approve, col_restart = st.columns(2)
 
     with col_approve:
@@ -115,7 +128,7 @@ elif st.session_state.outline is not None and st.session_state.plan is None:
                 with st.spinner("Writing slide content and running a quality check..."):
                     try:
                         st.session_state.plan = call_content_api(
-                            outline, st.session_state.input_text
+                            outline, st.session_state.input_text, chart_preference
                         )
                         st.rerun()
                     except Exception as e:
@@ -144,6 +157,8 @@ else:
 
             with col1:
                 st.markdown(f"**Slide {i + 1}: {slide.title}**")
+                if slide.chart is not None:
+                    st.caption(f"📊 {slide.chart.chart_type.title()} chart included")
                 for bullet in slide.bullets:
                     st.markdown(f"- {bullet}")
                 regen_instructions = st.text_input(

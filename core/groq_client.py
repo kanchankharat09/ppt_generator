@@ -106,22 +106,44 @@ CONTENT_SYSTEM_PROMPT = """You are a presentation content writer.
 You are given an approved slide outline (titles + focus for each slide).
 Write the full bullet content for every slide, staying on each slide's stated focus.
 
+If a slide's content is fundamentally a numeric comparison (e.g. values across categories,
+years, groups, or options) and a chart would communicate it better than bullets, include a
+"chart" field for that slide with the extracted data. Only add a chart when there is genuine
+numeric data to plot - do not invent numbers, and do not force a chart onto slides that are
+not naturally comparative/numeric.
+
 Respond with ONLY valid JSON, no extra text, matching exactly this shape:
 {
   "presentation_title": "string",
   "slides": [
-    {"title": "string", "bullets": ["string", "string"]}
+    {
+      "title": "string",
+      "bullets": ["string", "string"],
+      "chart": {
+        "chart_type": "bar | line | pie",
+        "categories": ["string", "string"],
+        "values": [0, 0],
+        "series_name": "string"
+      }
+    }
   ]
 }
 
 Rules:
 - Produce exactly one slide per outline item, in the same order, using the same titles.
-- Each slide should have 3-5 short, concise bullet points (max ~12 words each).
+- The "chart" field is optional - omit it entirely (or set it to null) for slides without
+  genuine numeric/comparative data.
+- When a chart is included, still include 2-4 short bullets summarizing the key takeaway.
+- Use "bar" for comparisons across categories, "line" for trends over time, "pie" for
+  proportions/percentages that sum to a whole.
+- Each slide should have 2-5 short, concise bullet points (max ~12 words each).
 - Do not include markdown formatting, backticks, or commentary outside the JSON.
 """
 
 
-def generate_content_from_outline(outline: Outline, original_text: str = "") -> SlidePlan:
+def generate_content_from_outline(
+    outline: Outline, original_text: str = "", chart_preference: str = "auto"
+) -> SlidePlan:
     client = get_client()
 
     outline_json = outline.model_dump_json()
@@ -129,6 +151,13 @@ def generate_content_from_outline(outline: Outline, original_text: str = "") -> 
 
     if original_text.strip():
         user_message += f"\nOriginal source content for reference:\n{original_text.strip()}\n"
+
+    if chart_preference == "none":
+        user_message += "\nDo not include any charts on any slide.\n"
+    elif chart_preference != "auto":
+        user_message += (
+            f"\nWhen a slide has chart-worthy data, use chart_type '{chart_preference}'.\n"
+        )
 
     response = client.chat.completions.create(
         model=MODEL,
@@ -187,7 +216,15 @@ def review_and_revise(plan: SlidePlan) -> SlidePlan:
 
     raw_content = response.choices[0].message.content
     data = json.loads(raw_content)
-    return SlidePlan(**data)
+    revised_plan = SlidePlan(**data)
+
+    # The quality-check prompt doesn't handle chart data, so re-attach the original
+    # chart for each slide (order/count is guaranteed unchanged by the prompt's rules).
+    if len(revised_plan.slides) == len(plan.slides):
+        for revised_slide, original_slide in zip(revised_plan.slides, plan.slides):
+            revised_slide.chart = original_slide.chart
+
+    return revised_plan
 
 
 REGENERATE_SLIDE_SYSTEM_PROMPT = """You are a presentation planning assistant.

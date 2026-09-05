@@ -17,10 +17,16 @@ def call_outline_api(text: str, slide_count: int | None) -> Outline:
     return Outline(**response.json()["outline"])
 
 
-def call_content_api(outline: Outline, original_text: str) -> SlidePlan:
+def call_content_api(
+    outline: Outline, original_text: str, chart_preference: str = "auto"
+) -> SlidePlan:
     response = requests.post(
         f"{API_BASE_URL}/content",
-        json={"outline": outline.model_dump(), "original_text": original_text},
+        json={
+            "outline": outline.model_dump(),
+            "original_text": original_text,
+            "chart_preference": chart_preference,
+        },
         timeout=180,
     )
     response.raise_for_status()

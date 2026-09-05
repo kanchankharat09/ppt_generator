@@ -35,7 +35,11 @@ def generate_outline(request: OutlineRequest):
 @app.post("/content", response_model=ContentResponse)
 def generate_content(request: ContentRequest):
     try:
-        plan = run_content_step(request.outline, original_text=request.original_text)
+        plan = run_content_step(
+            request.outline,
+            original_text=request.original_text,
+            chart_preference=request.chart_preference,
+        )
         return ContentResponse(plan=plan)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

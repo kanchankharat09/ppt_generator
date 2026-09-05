@@ -11,6 +11,7 @@ class OutlineRequest(BaseModel):
 class ContentRequest(BaseModel):
     outline: Outline
     original_text: str = ""
+    chart_preference: str = "auto"
 
 
 class RegenerateSlideRequest(BaseModel):
