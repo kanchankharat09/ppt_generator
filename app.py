@@ -20,13 +20,19 @@ user_text = st.text_area(
     height=150,
 )
 
+slide_count_choice = st.selectbox(
+    "Number of slides",
+    options=["Auto (AI decides)", "3", "5", "7", "10", "12", "15"],
+)
+slide_count = None if slide_count_choice == "Auto (AI decides)" else int(slide_count_choice)
+
 if st.button("Generate Presentation", type="primary"):
     if not user_text.strip():
         st.warning("Please enter a topic or some text first.")
     else:
         with st.spinner("Asking Groq to plan your slides..."):
             try:
-                st.session_state.plan = generate_slide_plan(user_text)
+                st.session_state.plan = generate_slide_plan(user_text, slide_count=slide_count)
             except Exception as e:
                 st.error(f"Failed to generate slide plan: {e}")
                 st.session_state.plan = None

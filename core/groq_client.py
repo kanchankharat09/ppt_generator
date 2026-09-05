@@ -19,7 +19,9 @@ Respond with ONLY valid JSON, no extra text, matching exactly this shape:
 }
 
 Rules:
-- Produce between 5 and 10 slides.
+- Unless the user specifies an exact number of slides, produce between 5 and 10 slides
+  based on how much content there is.
+- If the user specifies a number of slides, produce exactly that many.
 - Each slide should have 3-5 short bullet points.
 - Keep bullets concise (max ~12 words each).
 - Do not include markdown formatting, backticks, or commentary outside the JSON.
@@ -35,8 +37,11 @@ def get_client() -> Groq:
     return Groq(api_key=api_key)
 
 
-def generate_slide_plan(user_text: str) -> SlidePlan:
+def generate_slide_plan(user_text: str, slide_count: int | None = None) -> SlidePlan:
     client = get_client()
+
+    if slide_count:
+        user_text = f"{user_text}\n\nPlease create exactly {slide_count} slides."
 
     response = client.chat.completions.create(
         model=MODEL,
