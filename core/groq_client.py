@@ -5,7 +5,7 @@ from groq import Groq
 
 from core.schemas import SlidePlan
 
-MODEL = "llama-3.1-8b-instant"
+MODEL = "openai/gpt-oss-120b"
 
 SYSTEM_PROMPT = """You are a presentation planning assistant.
 Given a topic or text from the user, produce a slide plan for a PowerPoint presentation.
