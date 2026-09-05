@@ -59,27 +59,35 @@ def generate_slide_plan(user_text: str, slide_count: int | None = None) -> Slide
 
 
 REGENERATE_SLIDE_SYSTEM_PROMPT = """You are a presentation planning assistant.
-The user wants a single slide regenerated with fresh wording/angle, still on the same topic.
+The user wants a single slide regenerated, still on the same topic.
+If the user gives specific instructions for the change, follow them exactly.
+Otherwise, just rephrase or approach the same content differently.
 
 Respond with ONLY valid JSON, no extra text, matching exactly this shape:
 {"title": "string", "bullets": ["string", "string"]}
 
 Rules:
 - 3-5 short bullet points, max ~12 words each.
-- Keep it on the same topic/section as the original slide, but rephrase or approach it differently.
+- Keep it on the same topic/section as the original slide unless the instructions say otherwise.
 - No markdown, backticks, or commentary outside the JSON.
 """
 
 
-def regenerate_slide(presentation_title: str, original_slide: Slide) -> Slide:
+def regenerate_slide(
+    presentation_title: str, original_slide: Slide, instructions: str = ""
+) -> Slide:
     client = get_client()
 
     user_message = (
         f"Presentation title: {presentation_title}\n"
         f"Current slide title: {original_slide.title}\n"
         f"Current bullets: {original_slide.bullets}\n"
-        "Regenerate this slide."
     )
+
+    if instructions.strip():
+        user_message += f"Instructions for this regeneration: {instructions.strip()}\n"
+
+    user_message += "Regenerate this slide."
 
     response = client.chat.completions.create(
         model=MODEL,

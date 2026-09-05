@@ -72,12 +72,19 @@ if plan is not None:
                 st.markdown(f"**Slide {i + 1}: {slide.title}**")
                 for bullet in slide.bullets:
                     st.markdown(f"- {bullet}")
+                regen_instructions = st.text_input(
+                    "Regeneration instructions (optional)",
+                    key=f"regen_instructions_{i}",
+                    placeholder="e.g. make it shorter, add more about cost",
+                )
 
             with col2:
                 if st.button("Regenerate", key=f"regen_{i}"):
                     with st.spinner("Regenerating slide..."):
                         try:
-                            plan.slides[i] = regenerate_slide(plan.presentation_title, slide)
+                            plan.slides[i] = regenerate_slide(
+                                plan.presentation_title, slide, instructions=regen_instructions
+                            )
                             st.rerun()
                         except Exception as e:
                             st.error(f"Failed to regenerate slide: {e}")
