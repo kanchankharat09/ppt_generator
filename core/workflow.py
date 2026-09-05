@@ -2,7 +2,7 @@ from typing import TypedDict
 
 from langgraph.graph import END, StateGraph
 
-from core.groq_client import generate_content_from_outline, plan_outline
+from core.groq_client import generate_content_from_outline, plan_outline, review_and_revise
 from core.schemas import Outline, SlidePlan
 
 
@@ -56,5 +56,6 @@ def run_outline_step(user_text: str, slide_count: int | None = None) -> Outline:
 
 
 def run_content_step(outline: Outline, original_text: str = "") -> SlidePlan:
-    """Runs only the generate_content node, using an outline the user has approved."""
-    return generate_content_from_outline(outline, original_text=original_text)
+    """Runs the generate_content node, then a quality check/revision pass."""
+    plan = generate_content_from_outline(outline, original_text=original_text)
+    return review_and_revise(plan)

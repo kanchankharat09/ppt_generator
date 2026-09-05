@@ -115,7 +115,7 @@ elif st.session_state.outline is not None and st.session_state.plan is None:
             if not outline.items:
                 st.warning("Add at least one slide before generating.")
             else:
-                with st.spinner("Writing slide content..."):
+                with st.spinner("Writing slide content and running a quality check..."):
                     try:
                         st.session_state.plan = run_content_step(
                             outline, original_text=st.session_state.input_text

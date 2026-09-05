@@ -145,6 +145,51 @@ def generate_content_from_outline(outline: Outline, original_text: str = "") -> 
     return SlidePlan(**data)
 
 
+QUALITY_CHECK_SYSTEM_PROMPT = """You are a presentation quality reviewer.
+You are given a full slide plan (title + bullets per slide). Check it for:
+- Bullets that are too long or read like full sentences/paragraphs instead of concise points.
+- Repetition of the same point across multiple slides.
+- Vague or generic bullets that don't say anything specific.
+- Poor logical flow from one slide to the next.
+
+If you find real issues, rewrite ONLY the slides that need fixing to address them, keeping
+good slides unchanged. If the plan is already fine, return it exactly as given.
+
+Respond with ONLY valid JSON, no extra text, matching exactly this shape:
+{
+  "presentation_title": "string",
+  "slides": [
+    {"title": "string", "bullets": ["string", "string"]}
+  ]
+}
+
+Rules:
+- Keep the same number of slides and the same order.
+- Each slide should have 3-5 short, concise bullet points (max ~12 words each).
+- Do not include markdown formatting, backticks, or commentary outside the JSON.
+"""
+
+
+def review_and_revise(plan: SlidePlan) -> SlidePlan:
+    client = get_client()
+
+    plan_json = plan.model_dump_json()
+
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": QUALITY_CHECK_SYSTEM_PROMPT},
+            {"role": "user", "content": f"Slide plan to review:\n{plan_json}"},
+        ],
+        temperature=0.3,
+        response_format={"type": "json_object"},
+    )
+
+    raw_content = response.choices[0].message.content
+    data = json.loads(raw_content)
+    return SlidePlan(**data)
+
+
 REGENERATE_SLIDE_SYSTEM_PROMPT = """You are a presentation planning assistant.
 The user wants a single slide regenerated, still on the same topic.
 If the user gives specific instructions for the change, follow them exactly.
