@@ -48,3 +48,13 @@ def run_generation_workflow(user_text: str, slide_count: int | None = None) -> S
 
     final_state = workflow.invoke(initial_state)
     return final_state["plan"]
+
+
+def run_outline_step(user_text: str, slide_count: int | None = None) -> Outline:
+    """Runs only the plan_outline node. The UI pauses here for user review/edits."""
+    return plan_outline(user_text, slide_count=slide_count)
+
+
+def run_content_step(outline: Outline, original_text: str = "") -> SlidePlan:
+    """Runs only the generate_content node, using an outline the user has approved."""
+    return generate_content_from_outline(outline, original_text=original_text)
