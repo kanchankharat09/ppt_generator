@@ -63,6 +63,10 @@ Plain Streamlit app, single Groq call, no backend split yet.
   data — bar, line, or pie chart, or let AI decide?") rather than only exposing it as a
   static Phase 8 setting.
 - Workflow pauses/resumes using LangGraph state.
+- Post-generation edits: after the full deck is generated, the user can delete a slide,
+  or ask to regenerate a single slide, without regenerating the whole presentation — the
+  underlying structured slide plan (JSON) is kept, so this is a cheap re-render, not a
+  new Groq call for the whole deck.
 
 ## Phase 5 — Slide Quality Check + Revision Loop
 - AI reviews its own generated slides for quality/coherence and revises before finalizing.
