@@ -13,8 +13,8 @@ from core.ppt_builder import build_pptx
 from core.schemas import ImageAttachment
 
 st.set_page_config(page_title="AI PPT Generator", page_icon="📊")
-st.title("AI PPT Generator — Phase 7")
-st.caption("Streamlit → FastAPI → LangGraph → Groq → python-pptx → Download")
+st.title("AI PPT Generator — Phase 8")
+st.caption("Streamlit → FastAPI → LangGraph → Groq → Charts/Images → python-pptx → Download")
 
 for key, default in [
     ("outline", None),
