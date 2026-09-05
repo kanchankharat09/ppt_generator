@@ -39,6 +39,7 @@ def generate_content(request: ContentRequest):
             request.outline,
             original_text=request.original_text,
             chart_preference=request.chart_preference,
+            include_speaker_notes=request.include_speaker_notes,
         )
         return ContentResponse(plan=plan)
     except Exception as e:

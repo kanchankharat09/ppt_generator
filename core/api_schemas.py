@@ -12,6 +12,7 @@ class ContentRequest(BaseModel):
     outline: Outline
     original_text: str = ""
     chart_preference: str = "auto"
+    include_speaker_notes: bool = False
 
 
 class RegenerateSlideRequest(BaseModel):

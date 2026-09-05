@@ -19,6 +19,7 @@ class Slide(BaseModel):
     bullets: list[str] = Field(default_factory=list)
     chart: ChartData | None = None
     image_filenames: list[str] = Field(default_factory=list)
+    notes: str = ""
 
 
 class SlidePlan(BaseModel):

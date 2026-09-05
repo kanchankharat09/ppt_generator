@@ -176,6 +176,11 @@ elif st.session_state.outline is not None and st.session_state.plan is None:
         "No charts": "none",
     }[chart_choice]
 
+    include_speaker_notes = st.checkbox(
+        "Include speaker notes",
+        help="Keeps slide bullets short and puts extra explanation in PowerPoint's speaker notes.",
+    )
+
     col_approve, col_restart = st.columns(2)
 
     with col_approve:
@@ -186,7 +191,10 @@ elif st.session_state.outline is not None and st.session_state.plan is None:
                 with st.spinner("Writing slide content and running a quality check..."):
                     try:
                         st.session_state.plan = call_content_api(
-                            outline, st.session_state.input_text, chart_preference
+                            outline,
+                            st.session_state.input_text,
+                            chart_preference,
+                            include_speaker_notes,
                         )
                         st.rerun()
                     except Exception as e:
@@ -259,6 +267,9 @@ else:
                     st.caption(f"📊 {slide.chart.chart_type.title()} chart included")
                 if slide.image_filenames:
                     st.caption(f"🖼️ Image(s): {', '.join(slide.image_filenames)}")
+                if slide.notes:
+                    with st.expander("🗒️ Speaker notes"):
+                        st.write(slide.notes)
                 for bullet in slide.bullets:
                     st.markdown(f"- {bullet}")
                 regen_instructions = st.text_input(
@@ -274,9 +285,10 @@ else:
                             new_slide = call_regenerate_slide_api(
                                 plan.presentation_title, slide, regen_instructions
                             )
-                            # Regeneration only rewrites text; keep the existing chart/images.
+                            # Regeneration only rewrites text; keep the existing chart/images/notes.
                             new_slide.chart = slide.chart
                             new_slide.image_filenames = slide.image_filenames
+                            new_slide.notes = slide.notes
                             plan.slides[i] = new_slide
                             st.rerun()
                         except Exception as e:

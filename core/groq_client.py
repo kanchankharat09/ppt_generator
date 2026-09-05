@@ -124,7 +124,8 @@ Respond with ONLY valid JSON, no extra text, matching exactly this shape:
         "categories": ["string", "string"],
         "values": [0, 0],
         "series_name": "string"
-      }
+      },
+      "notes": "string"
     }
   ]
 }
@@ -137,12 +138,16 @@ Rules:
 - Use "bar" for comparisons across categories, "line" for trends over time, "pie" for
   proportions/percentages that sum to a whole.
 - Each slide should have 2-5 short, concise bullet points (max ~12 words each).
+- The "notes" field is optional - only include it if speaker notes are requested below.
 - Do not include markdown formatting, backticks, or commentary outside the JSON.
 """
 
 
 def generate_content_from_outline(
-    outline: Outline, original_text: str = "", chart_preference: str = "auto"
+    outline: Outline,
+    original_text: str = "",
+    chart_preference: str = "auto",
+    include_speaker_notes: bool = False,
 ) -> SlidePlan:
     client = get_client()
 
@@ -158,6 +163,15 @@ def generate_content_from_outline(
         user_message += (
             f"\nWhen a slide has chart-worthy data, use chart_type '{chart_preference}'.\n"
         )
+
+    if include_speaker_notes:
+        user_message += (
+            "\nSpeaker notes ARE requested: for every slide, write a 'notes' field with "
+            "2-4 sentences of additional explanation/context that supports the bullets but "
+            "should not appear on the visible slide itself.\n"
+        )
+    else:
+        user_message += "\nSpeaker notes are NOT requested: omit the 'notes' field entirely.\n"
 
     response = client.chat.completions.create(
         model=MODEL,
@@ -218,11 +232,12 @@ def review_and_revise(plan: SlidePlan) -> SlidePlan:
     data = json.loads(raw_content)
     revised_plan = SlidePlan(**data)
 
-    # The quality-check prompt doesn't handle chart data, so re-attach the original
-    # chart for each slide (order/count is guaranteed unchanged by the prompt's rules).
+    # The quality-check prompt doesn't handle chart/notes data, so re-attach the originals
+    # for each slide (order/count is guaranteed unchanged by the prompt's rules).
     if len(revised_plan.slides) == len(plan.slides):
         for revised_slide, original_slide in zip(revised_plan.slides, plan.slides):
             revised_slide.chart = original_slide.chart
+            revised_slide.notes = original_slide.notes
 
     return revised_plan
 

@@ -56,10 +56,16 @@ def run_outline_step(user_text: str, slide_count: int | None = None) -> Outline:
 
 
 def run_content_step(
-    outline: Outline, original_text: str = "", chart_preference: str = "auto"
+    outline: Outline,
+    original_text: str = "",
+    chart_preference: str = "auto",
+    include_speaker_notes: bool = False,
 ) -> SlidePlan:
     """Runs the generate_content node, then a quality check/revision pass."""
     plan = generate_content_from_outline(
-        outline, original_text=original_text, chart_preference=chart_preference
+        outline,
+        original_text=original_text,
+        chart_preference=chart_preference,
+        include_speaker_notes=include_speaker_notes,
     )
     return review_and_revise(plan)

@@ -39,6 +39,11 @@ def _add_images_to_right_column(slide, image_filenames, image_store, top_in=2.0)
         current_top += box_height_in
 
 
+def _set_notes(slide, notes: str):
+    if notes.strip():
+        slide.notes_slide.notes_text_frame.text = notes.strip()
+
+
 def _add_bullet_slide(prs: Presentation, bullet_layout, title_only_layout, slide_data: Slide, image_store: dict):
     has_images = bool(slide_data.image_filenames)
 
@@ -56,6 +61,8 @@ def _add_bullet_slide(prs: Presentation, bullet_layout, title_only_layout, slide
             else:
                 paragraph = text_frame.add_paragraph()
                 paragraph.text = bullet
+
+        _set_notes(slide, slide_data.notes)
         return
 
     # With images, use a title-only layout and lay out bullets (left) + images (right)
@@ -73,6 +80,7 @@ def _add_bullet_slide(prs: Presentation, bullet_layout, title_only_layout, slide
             paragraph.font.size = Pt(16)
 
     _add_images_to_right_column(slide, slide_data.image_filenames, image_store, top_in=1.5)
+    _set_notes(slide, slide_data.notes)
 
 
 def _add_chart_slide(prs: Presentation, title_only_layout, slide_data: Slide, image_store: dict):
@@ -107,6 +115,8 @@ def _add_chart_slide(prs: Presentation, title_only_layout, slide_data: Slide, im
 
     if has_images:
         _add_images_to_right_column(slide, slide_data.image_filenames, image_store, top_in=2.4)
+
+    _set_notes(slide, slide_data.notes)
 
 
 def build_pptx(plan: SlidePlan, image_store: dict | None = None) -> BytesIO:

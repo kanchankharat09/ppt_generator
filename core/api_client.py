@@ -18,7 +18,10 @@ def call_outline_api(text: str, slide_count: int | None) -> Outline:
 
 
 def call_content_api(
-    outline: Outline, original_text: str, chart_preference: str = "auto"
+    outline: Outline,
+    original_text: str,
+    chart_preference: str = "auto",
+    include_speaker_notes: bool = False,
 ) -> SlidePlan:
     response = requests.post(
         f"{API_BASE_URL}/content",
@@ -26,6 +29,7 @@ def call_content_api(
             "outline": outline.model_dump(),
             "original_text": original_text,
             "chart_preference": chart_preference,
+            "include_speaker_notes": include_speaker_notes,
         },
         timeout=180,
     )
