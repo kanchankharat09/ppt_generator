@@ -5,18 +5,25 @@ load_dotenv()
 import streamlit as st
 
 from core.groq_client import generate_slide_plan, regenerate_slide
+from core.pdf_utils import extract_text_from_pdfs
 from core.ppt_builder import build_pptx
 
 st.set_page_config(page_title="AI PPT Generator", page_icon="📊")
-st.title("AI PPT Generator — Phase 1")
-st.caption("Text → Groq → Slide Plan → python-pptx → Download")
+st.title("AI PPT Generator — Phase 2")
+st.caption("Text/PDFs → Groq → Slide Plan → python-pptx → Download")
 
 if "plan" not in st.session_state:
     st.session_state.plan = None
 
+uploaded_pdfs = st.file_uploader(
+    "Upload PDF(s) (optional)",
+    type=["pdf"],
+    accept_multiple_files=True,
+)
+
 user_text = st.text_area(
-    "What should the presentation be about?",
-    placeholder="e.g. The history and future of renewable energy",
+    "Additional instructions or text (optional if you uploaded PDFs)",
+    placeholder="e.g. Focus on the results section. Make it 10 slides for a client.",
     height=150,
 )
 
@@ -27,12 +34,23 @@ slide_count_choice = st.selectbox(
 slide_count = None if slide_count_choice == "Auto (AI decides)" else int(slide_count_choice)
 
 if st.button("Generate Presentation", type="primary"):
-    if not user_text.strip():
-        st.warning("Please enter a topic or some text first.")
+    pdf_text = ""
+    if uploaded_pdfs:
+        with st.spinner("Extracting text from PDF(s)..."):
+            try:
+                pdf_text = extract_text_from_pdfs(uploaded_pdfs)
+            except Exception as e:
+                st.error(f"Failed to read PDF(s): {e}")
+                st.stop()
+
+    combined_text = "\n\n".join(part for part in [pdf_text, user_text.strip()] if part)
+
+    if not combined_text.strip():
+        st.warning("Please enter some text or upload at least one PDF.")
     else:
         with st.spinner("Asking Groq to plan your slides..."):
             try:
-                st.session_state.plan = generate_slide_plan(user_text, slide_count=slide_count)
+                st.session_state.plan = generate_slide_plan(combined_text, slide_count=slide_count)
             except Exception as e:
                 st.error(f"Failed to generate slide plan: {e}")
                 st.session_state.plan = None

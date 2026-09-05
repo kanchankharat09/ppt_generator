@@ -3,3 +3,4 @@ groq
 python-pptx
 pydantic
 python-dotenv
+pypdf
