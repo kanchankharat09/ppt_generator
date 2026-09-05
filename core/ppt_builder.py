@@ -7,6 +7,7 @@ from pptx.util import Inches, Pt
 
 from core.image_utils import get_image_size_inches
 from core.schemas import Slide, SlidePlan
+from core.themes import THEMES, apply_background, style_text_frame, style_title
 
 CHART_TYPE_MAP = {
     "bar": XL_CHART_TYPE.COLUMN_CLUSTERED,
@@ -44,12 +45,14 @@ def _set_notes(slide, notes: str):
         slide.notes_slide.notes_text_frame.text = notes.strip()
 
 
-def _add_bullet_slide(prs: Presentation, bullet_layout, title_only_layout, slide_data: Slide, image_store: dict):
+def _add_bullet_slide(prs: Presentation, bullet_layout, title_only_layout, slide_data: Slide, image_store: dict, theme: dict):
     has_images = bool(slide_data.image_filenames)
 
     if not has_images:
         slide = prs.slides.add_slide(bullet_layout)
         slide.shapes.title.text = slide_data.title
+        apply_background(slide, theme)
+        style_title(slide, theme)
 
         body = slide.placeholders[1]
         text_frame = body.text_frame
@@ -61,6 +64,7 @@ def _add_bullet_slide(prs: Presentation, bullet_layout, title_only_layout, slide
             else:
                 paragraph = text_frame.add_paragraph()
                 paragraph.text = bullet
+        style_text_frame(text_frame, theme)
 
         _set_notes(slide, slide_data.notes)
         return
@@ -69,6 +73,8 @@ def _add_bullet_slide(prs: Presentation, bullet_layout, title_only_layout, slide
     # ourselves, so the image never overlaps the text placeholder.
     slide = prs.slides.add_slide(title_only_layout)
     slide.shapes.title.text = slide_data.title
+    apply_background(slide, theme)
+    style_title(slide, theme)
 
     if slide_data.bullets:
         textbox = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(4.3), Inches(5.3))
@@ -78,14 +84,17 @@ def _add_bullet_slide(prs: Presentation, bullet_layout, title_only_layout, slide
             paragraph = text_frame.paragraphs[0] if i == 0 else text_frame.add_paragraph()
             paragraph.text = f"• {bullet}"
             paragraph.font.size = Pt(16)
+        style_text_frame(text_frame, theme)
 
     _add_images_to_right_column(slide, slide_data.image_filenames, image_store, top_in=1.5)
     _set_notes(slide, slide_data.notes)
 
 
-def _add_chart_slide(prs: Presentation, title_only_layout, slide_data: Slide, image_store: dict):
+def _add_chart_slide(prs: Presentation, title_only_layout, slide_data: Slide, image_store: dict, theme: dict):
     slide = prs.slides.add_slide(title_only_layout)
     slide.shapes.title.text = slide_data.title
+    apply_background(slide, theme)
+    style_title(slide, theme)
 
     has_images = bool(slide_data.image_filenames)
     chart_width_in = 5.5 if has_images else 8
@@ -100,6 +109,7 @@ def _add_chart_slide(prs: Presentation, title_only_layout, slide_data: Slide, im
             paragraph = text_frame.paragraphs[0] if i == 0 else text_frame.add_paragraph()
             paragraph.text = f"• {bullet}"
             paragraph.font.size = Pt(14)
+        style_text_frame(text_frame, theme)
 
     chart = slide_data.chart
     chart_data = CategoryChartData()
@@ -119,14 +129,18 @@ def _add_chart_slide(prs: Presentation, title_only_layout, slide_data: Slide, im
     _set_notes(slide, slide_data.notes)
 
 
-def build_pptx(plan: SlidePlan, image_store: dict | None = None) -> BytesIO:
+def build_pptx(plan: SlidePlan, image_store: dict | None = None, theme_name: str = "Default") -> BytesIO:
     image_store = image_store or {}
+    theme = THEMES.get(theme_name, THEMES["Default"])
     prs = Presentation()
 
     title_layout = prs.slide_layouts[0]
     slide = prs.slides.add_slide(title_layout)
     slide.shapes.title.text = plan.presentation_title
     slide.placeholders[1].text = "Generated with AI PPT Generator"
+    apply_background(slide, theme)
+    style_title(slide, theme)
+    style_text_frame(slide.placeholders[1].text_frame, theme)
 
     if plan.title_slide_image_filenames:
         _add_images_to_right_column(slide, plan.title_slide_image_filenames, image_store, top_in=3.0)
@@ -136,9 +150,9 @@ def build_pptx(plan: SlidePlan, image_store: dict | None = None) -> BytesIO:
 
     for slide_data in plan.slides:
         if slide_data.chart is not None:
-            _add_chart_slide(prs, title_only_layout, slide_data, image_store)
+            _add_chart_slide(prs, title_only_layout, slide_data, image_store, theme)
         else:
-            _add_bullet_slide(prs, bullet_layout, title_only_layout, slide_data, image_store)
+            _add_bullet_slide(prs, bullet_layout, title_only_layout, slide_data, image_store, theme)
 
     buffer = BytesIO()
     prs.save(buffer)

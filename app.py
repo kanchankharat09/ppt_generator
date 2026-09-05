@@ -305,8 +305,15 @@ else:
     if not plan.slides:
         st.warning("All slides deleted. Nothing to download.")
     else:
+        theme_name = st.selectbox(
+            "Theme",
+            options=["Default", "Professional Blue", "Minimal Dark", "Warm Neutral"],
+        )
+
         with st.spinner("Building PowerPoint file..."):
-            pptx_buffer = build_pptx(plan, image_store=st.session_state.image_store)
+            pptx_buffer = build_pptx(
+                plan, image_store=st.session_state.image_store, theme_name=theme_name
+            )
 
         st.download_button(
             label="Download .pptx",
