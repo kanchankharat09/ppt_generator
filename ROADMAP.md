@@ -58,6 +58,10 @@ Plain Streamlit app, single Groq call, no backend split yet.
 - User can answer, pick an option, let AI decide, or skip.
 - Outline-first: user reviews and edits the proposed outline (add/remove/rename/reorder/combine)
   before final generation.
+- If the outline includes slides with chart-worthy data and the user hasn't specified a
+  chart type/color preference, the AI asks about it here (e.g. "This slide has comparison
+  data — bar, line, or pie chart, or let AI decide?") rather than only exposing it as a
+  static Phase 8 setting.
 - Workflow pauses/resumes using LangGraph state.
 
 ## Phase 5 — Slide Quality Check + Revision Loop
