@@ -4,13 +4,14 @@ load_dotenv()
 
 import streamlit as st
 
-from core.groq_client import generate_slide_plan, regenerate_slide
+from core.groq_client import regenerate_slide
 from core.pdf_utils import extract_text_from_pdfs
 from core.ppt_builder import build_pptx
+from core.workflow import run_generation_workflow
 
 st.set_page_config(page_title="AI PPT Generator", page_icon="📊")
-st.title("AI PPT Generator — Phase 2")
-st.caption("Text/PDFs → Groq → Slide Plan → python-pptx → Download")
+st.title("AI PPT Generator — Phase 3")
+st.caption("Text/PDFs → LangGraph (outline → content) → Groq → python-pptx → Download")
 
 if "plan" not in st.session_state:
     st.session_state.plan = None
@@ -48,9 +49,11 @@ if st.button("Generate Presentation", type="primary"):
     if not combined_text.strip():
         st.warning("Please enter some text or upload at least one PDF.")
     else:
-        with st.spinner("Asking Groq to plan your slides..."):
+        with st.spinner("Running workflow: planning outline, then writing slide content..."):
             try:
-                st.session_state.plan = generate_slide_plan(combined_text, slide_count=slide_count)
+                st.session_state.plan = run_generation_workflow(
+                    combined_text, slide_count=slide_count
+                )
             except Exception as e:
                 st.error(f"Failed to generate slide plan: {e}")
                 st.session_state.plan = None

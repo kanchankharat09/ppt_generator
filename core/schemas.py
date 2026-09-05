@@ -9,3 +9,13 @@ class Slide(BaseModel):
 class SlidePlan(BaseModel):
     presentation_title: str
     slides: list[Slide]
+
+
+class OutlineItem(BaseModel):
+    title: str
+    focus: str
+
+
+class Outline(BaseModel):
+    presentation_title: str
+    items: list[OutlineItem]
