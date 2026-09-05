@@ -271,3 +271,43 @@ def regenerate_slide(
     raw_content = response.choices[0].message.content
     data = json.loads(raw_content)
     return Slide(**data)
+
+
+IMAGE_PLACEMENT_SYSTEM_PROMPT = """You are a presentation assistant.
+You are given a description of an image and a list of slides (index, title, bullets).
+Pick the single best slide index for this image, based on how well its content
+matches the image's description.
+
+Respond with ONLY valid JSON, no extra text, matching exactly this shape:
+{"slide_index": 0}
+
+Rules:
+- slide_index must be one of the given indices.
+- If nothing matches well, pick the slide whose topic is closest.
+"""
+
+
+def choose_image_slide(description: str, plan: SlidePlan) -> int:
+    """Returns the best-matching slide index (0-based) for an image, using Groq."""
+    client = get_client()
+
+    slides_summary = [
+        {"index": i, "title": s.title, "bullets": s.bullets} for i, s in enumerate(plan.slides)
+    ]
+
+    user_message = f"Image description: {description}\n\nSlides:\n{json.dumps(slides_summary)}"
+
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": IMAGE_PLACEMENT_SYSTEM_PROMPT},
+            {"role": "user", "content": user_message},
+        ],
+        temperature=0.2,
+        response_format={"type": "json_object"},
+    )
+
+    raw_content = response.choices[0].message.content
+    data = json.loads(raw_content)
+    index = data.get("slide_index", 0)
+    return max(0, min(index, len(plan.slides) - 1))

@@ -5,8 +5,12 @@ load_dotenv()
 import streamlit as st
 
 from core.api_client import call_content_api, call_outline_api, call_regenerate_slide_api
+from core.gemini_client import describe_image
+from core.groq_client import choose_image_slide
+from core.image_utils import read_image_bytes
 from core.pdf_utils import extract_text_from_pdfs
 from core.ppt_builder import build_pptx
+from core.schemas import ImageAttachment
 
 st.set_page_config(page_title="AI PPT Generator", page_icon="📊")
 st.title("AI PPT Generator — Phase 7")
@@ -16,6 +20,9 @@ for key, default in [
     ("outline", None),
     ("input_text", ""),
     ("plan", None),
+    ("image_store", {}),
+    ("image_attachments", []),
+    ("images_placed", False),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -41,6 +48,56 @@ if st.session_state.outline is None and st.session_state.plan is None:
     )
     slide_count = None if slide_count_choice == "Auto (AI decides)" else int(slide_count_choice)
 
+    st.subheader("Upload Images (optional)")
+    st.caption(
+        "Describe each image or leave it blank to let AI figure it out (requires a "
+        "Gemini API key set as GEMINI_API_KEY - Groq's models can't see images)."
+    )
+
+    uploaded_images = st.file_uploader(
+        "Upload image(s) (optional)",
+        type=["png", "jpg", "jpeg"],
+        accept_multiple_files=True,
+    )
+
+    image_attachments = []
+    if uploaded_images:
+        for img_file in uploaded_images:
+            with st.container(border=True):
+                st.image(img_file, width=200)
+
+                description = st.text_input(
+                    "Describe this image or tell AI how you want to use it",
+                    key=f"img_desc_{img_file.name}",
+                    placeholder="e.g. This is our system architecture. Put it on the Architecture slide.",
+                )
+
+                placement_choice = st.selectbox(
+                    "Placement",
+                    options=["Let AI decide", "Title slide", "Specific slide"],
+                    key=f"img_placement_{img_file.name}",
+                )
+
+                slide_number = None
+                if placement_choice == "Specific slide":
+                    slide_number = st.number_input(
+                        "Slide number", min_value=1, step=1, key=f"img_slide_num_{img_file.name}"
+                    )
+
+                if placement_choice == "Title slide":
+                    placement = "title"
+                elif placement_choice == "Specific slide":
+                    placement = str(int(slide_number))
+                else:
+                    placement = "auto"
+
+                st.session_state.image_store[img_file.name] = read_image_bytes(img_file)
+                image_attachments.append(
+                    ImageAttachment(
+                        filename=img_file.name, description=description, placement=placement
+                    )
+                )
+
     if st.button("Generate Outline", type="primary"):
         pdf_text = ""
         if uploaded_pdfs:
@@ -59,6 +116,7 @@ if st.session_state.outline is None and st.session_state.plan is None:
             with st.spinner("Planning outline..."):
                 try:
                     st.session_state.input_text = combined_text
+                    st.session_state.image_attachments = image_attachments
                     st.session_state.outline = call_outline_api(combined_text, slide_count)
                     st.rerun()
                 except Exception as e:
@@ -139,12 +197,52 @@ elif st.session_state.outline is not None and st.session_state.plan is None:
             st.session_state.outline = None
             st.session_state.input_text = ""
             st.session_state.plan = None
+            st.session_state.image_store = {}
+            st.session_state.image_attachments = []
+            st.session_state.images_placed = False
             st.rerun()
 
 # --- Step 3: final slide review, delete/regenerate, download ---
 
 else:
     plan = st.session_state.plan
+
+    if not st.session_state.images_placed and st.session_state.image_attachments:
+        with st.spinner("Placing images on slides..."):
+            for attachment in st.session_state.image_attachments:
+                description = attachment.description.strip()
+
+                if not description:
+                    image_bytes = st.session_state.image_store.get(attachment.filename)
+                    if image_bytes:
+                        try:
+                            description = describe_image(image_bytes)
+                        except Exception:
+                            description = ""
+
+                if attachment.placement == "title":
+                    plan.title_slide_image_filenames.append(attachment.filename)
+                elif attachment.placement not in ("auto", "title"):
+                    try:
+                        slide_index = int(attachment.placement) - 1
+                    except ValueError:
+                        slide_index = 0
+                    slide_index = max(0, min(slide_index, len(plan.slides) - 1))
+                    plan.slides[slide_index].image_filenames.append(attachment.filename)
+                else:
+                    if description:
+                        try:
+                            slide_index = choose_image_slide(description, plan)
+                            plan.slides[slide_index].image_filenames.append(attachment.filename)
+                        except Exception:
+                            plan.title_slide_image_filenames.append(attachment.filename)
+                    else:
+                        # No description available (no Gemini key and user left it blank) -
+                        # fall back to the title slide rather than guessing.
+                        plan.title_slide_image_filenames.append(attachment.filename)
+
+        st.session_state.images_placed = True
+
     st.success(f"Generated plan: {plan.presentation_title} ({len(plan.slides)} slides)")
     st.subheader("Review your slides")
     st.caption("Delete slides you don't want, or regenerate a slide before downloading.")
@@ -159,6 +257,8 @@ else:
                 st.markdown(f"**Slide {i + 1}: {slide.title}**")
                 if slide.chart is not None:
                     st.caption(f"📊 {slide.chart.chart_type.title()} chart included")
+                if slide.image_filenames:
+                    st.caption(f"🖼️ Image(s): {', '.join(slide.image_filenames)}")
                 for bullet in slide.bullets:
                     st.markdown(f"- {bullet}")
                 regen_instructions = st.text_input(
@@ -171,9 +271,13 @@ else:
                 if st.button("Regenerate", key=f"regen_{i}"):
                     with st.spinner("Regenerating slide..."):
                         try:
-                            plan.slides[i] = call_regenerate_slide_api(
+                            new_slide = call_regenerate_slide_api(
                                 plan.presentation_title, slide, regen_instructions
                             )
+                            # Regeneration only rewrites text; keep the existing chart/images.
+                            new_slide.chart = slide.chart
+                            new_slide.image_filenames = slide.image_filenames
+                            plan.slides[i] = new_slide
                             st.rerun()
                         except Exception as e:
                             st.error(f"Failed to regenerate slide: {e}")
@@ -190,7 +294,7 @@ else:
         st.warning("All slides deleted. Nothing to download.")
     else:
         with st.spinner("Building PowerPoint file..."):
-            pptx_buffer = build_pptx(plan)
+            pptx_buffer = build_pptx(plan, image_store=st.session_state.image_store)
 
         st.download_button(
             label="Download .pptx",
@@ -203,4 +307,7 @@ else:
         st.session_state.outline = None
         st.session_state.input_text = ""
         st.session_state.plan = None
+        st.session_state.image_store = {}
+        st.session_state.image_attachments = []
+        st.session_state.images_placed = False
         st.rerun()

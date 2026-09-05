@@ -8,3 +8,5 @@ langgraph
 fastapi
 uvicorn
 requests
+Pillow
+google-generativeai
